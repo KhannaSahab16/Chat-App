@@ -69,7 +69,7 @@ Welcome to the backend of a full-fledged real-time chat system — built from sc
 ---
 
 ## 🗂️ Project Structure
-
+<pre>
 chat-backend/
 │
 ├── server.js        # Main entry point
@@ -89,8 +89,8 @@ chat-backend/
 ├── .gitignore
 ├── package.json
 ├── package-lock.json
-└── .env # MongoDB connection URI
-
+└── .env # MongoDB connection URI 
+<pre>
 ---
 
 ## 🧠 Future Ideas
