@@ -13,45 +13,53 @@ module.exports = (io) => {
 
     
     socket.on("register", async (username) => {
-      username = username.trim();
-      registerUser(username, socket.id);
-      console.log(`✅ Registered: ${username} → ${socket.id}`);
+  try {
+    username = username.trim();
+    registerUser(username, socket.id);
+    console.log(`✅ Registered: ${username} → ${socket.id}`);
+    io.emit("onlineStatus", { user: username, status: "online" });
+    console.log(`🟢 ${username} is now online`);
+
+    
+    const undelivered = await Message.find({
+      receiver: username,
+      delivered: false,
+    });
+
+    console.log(`🧠 Found ${undelivered.length} undelivered messages for ${username}`);
+
+   
+    for (const msg of undelivered) {
+      io.to(socket.id).emit("receiveMessage", {
+        _id: msg._id,
+        sender: msg.sender,
+        receiver: msg.receiver,
+        message: msg.message,
+        timestamp: msg.timestamp,
+      });
+
+      console.log(`📤 Sent undelivered message from ${msg.sender}: ${msg.message}`);
 
       
-      const undelivered = await Message.find({
-        receiver: username,
-        delivered: false,
-      });
+      await Message.findByIdAndUpdate(msg._id, { delivered: true });
+    }
 
-      undelivered.forEach((msg) => {
-        io.to(socket.id).emit("receiveMessage", {
-          _id: msg._id,
-          sender: msg.sender,
-          receiver: msg.receiver,
-          message: msg.message,
-          timestamp: msg.timestamp,
-        });
+    
+    
 
-        
-        Message.findByIdAndUpdate(msg._id, { delivered: true }).catch(
-          console.error
-        );
-      });
-
-      if (undelivered.length) {
-        console.log(`📤 Pushed ${undelivered.length} messages to ${username}`);
-      }
-
-      io.emit("onlineStatus", { user: username, status: "online" });
-    });
+  } catch (error) {
+    console.error(`❌ Error in register handler for ${username}:`, error);
+  }
+});
 
     
     socket.on("sendMessage", async ({ sender, receiver, message }) => {
       console.log("📩 Incoming message data:", { sender, receiver, message });
 
       try {
-        const newMsg = new Message({ sender, receiver, message });
         const receiverSocketId = getUserSocket(receiver.trim());
+        const newMsg = new Message({ sender, receiver, message, delivered: !!receiverSocketId,});
+        
 
         if (receiverSocketId) {
           newMsg.delivered = true;
@@ -67,7 +75,7 @@ module.exports = (io) => {
           });
         } else {
           await newMsg.save();
-          console.log(`⚠️ ${receiver} is offline – message stored for later`);
+          console.log(`⚠️ ${receiver} is offline so message stored for later`);
         }
       } catch (err) {
         console.error("❌ Error saving message:", err);
@@ -84,6 +92,7 @@ module.exports = (io) => {
     socket.on("messageRead", async ({ messageId }) => {
       try {
         await Message.findByIdAndUpdate(messageId, { read: true });
+        
 
         const updatedMsg = await Message.findById(messageId);
         const senderSocket = getUserSocket(updatedMsg.sender);

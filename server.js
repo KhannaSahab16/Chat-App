@@ -4,6 +4,7 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 const { Server } = require("socket.io");
 const statusRoutes = require("./routes/statusRoutes");
+const onlineRoute = require("./routes/online");
 
 const connectDB = require("./config/db");
 const messageRoutes = require("./routes/messageRoutes");
@@ -24,6 +25,7 @@ app.use(express.json());
 
 app.use("/api/messages", messageRoutes);
 app.use("/api", statusRoutes);
+app.use("/api/online-users", onlineRoute);
 
 
 require("./sockets/chat")(io); 
