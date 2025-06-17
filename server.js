@@ -4,7 +4,7 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 const { Server } = require("socket.io");
 const statusRoutes = require("./routes/statusRoutes");
-const onlineRoute = require("./routes/online");
+const onlineRoute = require("./routes/onlineRoute");
 
 const connectDB = require("./config/db");
 const messageRoutes = require("./routes/messageRoutes");
