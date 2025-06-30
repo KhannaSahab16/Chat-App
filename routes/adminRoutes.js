@@ -20,3 +20,4 @@ router.delete("/messages/:id", verifyToken, verifyAdmin, async (req, res) => {
     res.status(500).json({ error: "Failed to delete message" });
   }
 });
+module.exports = router;

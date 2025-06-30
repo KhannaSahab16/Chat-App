@@ -1,0 +1,22 @@
+{
+  "english": {
+    "jokes": [
+      "Why do Java devs wear glasses? Because they can't C.",
+      "99 bugs in the code, fix one, 127 bugs now!"
+    ],
+    "quotes": [
+      "Talk is cheap. Show me the code.",
+      "First, solve the problem. Then, write the code."
+    ]
+  },
+  "hindi": {
+    "jokes": [
+      "Programmer: Kuch nahi kaam kar raha. Solution: Restart karo!",
+      "Debugger ka asli dard sirf coder hi samajh sakta hai."
+    ],
+    "quotes": [
+      "Code likhne ka asli mazza tab aata hai jab vo chal jaye 😎",
+      "Har bug ka ek solution hota hai... ya fir banda resign karta hai 😂"
+    ]
+  }
+}

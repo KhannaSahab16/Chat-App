@@ -1,5 +1,4 @@
 const Message = require("../models/Message");
-const { getMoodReply } = require("../utils/moodBot");
 const User = require("../models/User");
 const {
   registerUser,
@@ -7,6 +6,8 @@ const {
   getUserSocket,
   getOnlineUsers,
 } = require("../utils/userStore");
+const { getMoodReply } = require("../utils/moodBot");
+const { updateLastActive, getIdleTime } = require("../utils/lastActiveStore");
 const botQuotes = require("../utils/botQuotes.json");
 
 module.exports = (io) => {
@@ -54,14 +55,23 @@ module.exports = (io) => {
   }
 });
 
-    
-   const { getUserSocket } = require("../utils/userStore");
-const { getMoodReply } = require("../utils/moodBot");
+
+
+
+function getRandomQuoteOrJoke(type, lang = "english") {
+  const items = botQuotes?.[lang]?.[type] || botQuotes.english[type];
+  return items[Math.floor(Math.random() * items.length)];
+}
 
 socket.on("sendMessage", async ({ sender, receiver, message }) => {
   console.log("📩 Incoming message data:", { sender, receiver, message });
 
   try {
+    
+    updateLastActive(sender);
+    const idleTime = getIdleTime(sender);
+    const isIdle = idleTime > 1000 * 60 * 5; // > 5 mins
+
     const receiverSocketId = getUserSocket(receiver.trim());
 
     const newMsg = new Message({
@@ -71,12 +81,9 @@ socket.on("sendMessage", async ({ sender, receiver, message }) => {
       delivered: !!receiverSocketId,
     });
 
-    // Save + send to receiver if online
     if (receiverSocketId) {
       newMsg.delivered = true;
       await newMsg.save();
-      console.log("💾 Message saved to DB");
-
       io.to(receiverSocketId).emit("receiveMessage", {
         _id: newMsg._id,
         sender,
@@ -86,10 +93,9 @@ socket.on("sendMessage", async ({ sender, receiver, message }) => {
       });
     } else {
       await newMsg.save();
-      console.log(`⚠️ ${receiver} is offline so message stored for later`);
+      console.log(`⚠️ ${receiver} is offline so message stored`);
     }
 
-    // Acknowledge back to sender
     socket.emit("message-sent", {
       _id: newMsg._id,
       receiver,
@@ -107,22 +113,51 @@ socket.on("sendMessage", async ({ sender, receiver, message }) => {
     
     if (receiver.toLowerCase() === "bot") {
       const msgLower = message.toLowerCase().trim();
+      let reply = "";
+
+      
+      const userDoc = await User.findOne({ username: sender });
+      const currentMood = userDoc?.mood || "default";
+      const language = userDoc?.language || "english";
 
       
       const moodMatch = msgLower.match(/set mood to (\w+)/);
-      let reply = "";
-
       if (moodMatch) {
         const newMood = moodMatch[1].toLowerCase();
         const validMoods = ["default", "funny", "angry", "motivator", "flirty", "dev"];
         if (validMoods.includes(newMood)) {
-          setMood(sender, newMood);
+          await User.findOneAndUpdate({ username: sender }, { mood: newMood });
           reply = `Mood set to '${newMood}'. Talk to me now 😉`;
         } else {
           reply = `Unknown mood. Valid moods: ${validMoods.join(", ")}`;
         }
-      } else {
-        const currentMood = getMood(sender);
+      }
+
+      
+      else if (msgLower.match(/set language to (\w+)/)) {
+        const lang = msgLower.match(/set language to (\w+)/)[1].toLowerCase();
+        if (["english", "hindi"].includes(lang)) {
+          await User.findOneAndUpdate({ username: sender }, { language: lang });
+          reply = `Language set to '${lang}'.`;
+        } else {
+          reply = `Unknown language. Options: english, hindi`;
+        }
+      }
+
+      
+      else if (isIdle) {
+        reply = `Back from the dead huh ${sender}? You idle coder 😴`;
+      }
+
+      
+      else if (msgLower.includes("joke")) {
+        reply = getRandomQuoteOrJoke("jokes", language);
+      } else if (msgLower.includes("quote")) {
+        reply = getRandomQuoteOrJoke("quotes", language);
+      }
+
+      
+      else {
         reply = getMoodReply(currentMood, msgLower, sender);
       }
 
@@ -148,12 +183,11 @@ socket.on("sendMessage", async ({ sender, receiver, message }) => {
         }
       }, 1000);
     }
-  
-
   } catch (err) {
     console.error("❌ Error saving message:", err);
   }
 });
+
 
     
     socket.on("messageDelivered", async ({ messageId }) => {
