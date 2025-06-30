@@ -1,11 +1,13 @@
 const Message = require("../models/Message");
-
+const { getMoodReply } = require("../utils/moodBot");
+const User = require("../models/User");
 const {
   registerUser,
   removeUser,
   getUserSocket,
   getOnlineUsers,
 } = require("../utils/userStore");
+const botQuotes = require("../utils/botQuotes.json");
 
 module.exports = (io) => {
   io.on("connection", (socket) => {
@@ -53,48 +55,105 @@ module.exports = (io) => {
 });
 
     
-    socket.on("sendMessage", async ({ sender, receiver, message }) => {
-      console.log("📩 Incoming message data:", { sender, receiver, message });
+   const { getUserSocket } = require("../utils/userStore");
+const { getMoodReply } = require("../utils/moodBot");
 
-      try {
-        const receiverSocketId = getUserSocket(receiver.trim());
-        const newMsg = new Message({ sender, receiver, message, delivered: !!receiverSocketId,});
-        
+socket.on("sendMessage", async ({ sender, receiver, message }) => {
+  console.log("📩 Incoming message data:", { sender, receiver, message });
 
-        if (receiverSocketId) {
-          newMsg.delivered = true;
-          await newMsg.save();
-          console.log("💾 Message saved to DB");
+  try {
+    const receiverSocketId = getUserSocket(receiver.trim());
 
-          io.to(receiverSocketId).emit("receiveMessage", {
-            _id: newMsg._id,
-            sender,
-            receiver,
-            message,
-            timestamp: newMsg.timestamp,
-          });
-        } else {
-          await newMsg.save();
-          console.log(`⚠️ ${receiver} is offline so message stored for later`);
-        }
-        socket.emit("message-sent", {
-  _id: newMsg._id,
-  receiver,
-  message,
-  timestamp: newMsg.timestamp,
-});
-
-
-if (receiverSocketId) {
-  io.to(socket.id).emit("message-delivered", {
-    messageId: newMsg._id,
-    receiver,
-  });
-}
-      } catch (err) {
-        console.error("❌ Error saving message:", err);
-      }
+    const newMsg = new Message({
+      sender,
+      receiver,
+      message,
+      delivered: !!receiverSocketId,
     });
+
+    // Save + send to receiver if online
+    if (receiverSocketId) {
+      newMsg.delivered = true;
+      await newMsg.save();
+      console.log("💾 Message saved to DB");
+
+      io.to(receiverSocketId).emit("receiveMessage", {
+        _id: newMsg._id,
+        sender,
+        receiver,
+        message,
+        timestamp: newMsg.timestamp,
+      });
+    } else {
+      await newMsg.save();
+      console.log(`⚠️ ${receiver} is offline so message stored for later`);
+    }
+
+    // Acknowledge back to sender
+    socket.emit("message-sent", {
+      _id: newMsg._id,
+      receiver,
+      message,
+      timestamp: newMsg.timestamp,
+    });
+
+    if (receiverSocketId) {
+      io.to(socket.id).emit("message-delivered", {
+        messageId: newMsg._id,
+        receiver,
+      });
+    }
+
+    
+    if (receiver.toLowerCase() === "bot") {
+      const msgLower = message.toLowerCase().trim();
+
+      
+      const moodMatch = msgLower.match(/set mood to (\w+)/);
+      let reply = "";
+
+      if (moodMatch) {
+        const newMood = moodMatch[1].toLowerCase();
+        const validMoods = ["default", "funny", "angry", "motivator", "flirty", "dev"];
+        if (validMoods.includes(newMood)) {
+          setMood(sender, newMood);
+          reply = `Mood set to '${newMood}'. Talk to me now 😉`;
+        } else {
+          reply = `Unknown mood. Valid moods: ${validMoods.join(", ")}`;
+        }
+      } else {
+        const currentMood = getMood(sender);
+        reply = getMoodReply(currentMood, msgLower, sender);
+      }
+
+      
+      setTimeout(async () => {
+        const botMsg = new Message({
+          sender: "Bot",
+          receiver: sender,
+          message: reply,
+          delivered: true,
+        });
+        await botMsg.save();
+
+        const senderSocketId = getUserSocket(sender);
+        if (senderSocketId) {
+          io.to(senderSocketId).emit("receiveMessage", {
+            _id: botMsg._id,
+            sender: "Bot",
+            receiver: sender,
+            message: reply,
+            timestamp: botMsg.timestamp,
+          });
+        }
+      }, 1000);
+    }
+  
+
+  } catch (err) {
+    console.error("❌ Error saving message:", err);
+  }
+});
 
     
     socket.on("messageDelivered", async ({ messageId }) => {
