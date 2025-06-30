@@ -6,7 +6,7 @@ const MessageSchema = new mongoose.Schema({
   message: { type: String, required: true },
   timestamp: { type: Date, default: Date.now },
   delivered: { type: Boolean, default: false }, 
-  read: { type: Boolean, default: false },      
+  seen: { type: Boolean, default: false },      
 });
 
 module.exports = mongoose.model("Message", MessageSchema);

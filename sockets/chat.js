@@ -77,6 +77,10 @@ module.exports = (io) => {
           await newMsg.save();
           console.log(`⚠️ ${receiver} is offline so message stored for later`);
         }
+        socket.emit("message-sent", message);
+        if (receiverSocket) {
+      socket.emit("message-delivered", { messageId: message._id });
+    }
       } catch (err) {
         console.error("❌ Error saving message:", err);
       }
@@ -87,30 +91,42 @@ module.exports = (io) => {
       await Message.findByIdAndUpdate(messageId, { delivered: true });
       console.log(`📬 Message ${messageId} marked as delivered`);
     });
+    socket.on("typing", ({ to }) => {
+  const receiverSocket = getUserSocket(to);
+  if (receiverSocket) {
+    io.to(receiverSocket).emit("typing", { from: userId });
+  }
+});
+
+socket.on("stop-typing", ({ to }) => {
+  const receiverSocket = getUserSocket(to);
+  if (receiverSocket) {
+    io.to(receiverSocket).emit("stop-typing", { from: userId });
+  }
+});
 
     
-    socket.on("messageRead", async ({ messageId }) => {
-      try {
-        await Message.findByIdAndUpdate(messageId, { read: true });
-        
+//     socket.on("messageSeen", async ({ sender, receiver }) => {
+//   try {
+//     const updated = await Message.updateMany(
+//       { sender, receiver, seen: false },
+//       { $set: { seen: true } }
+//     );
 
-        const updatedMsg = await Message.findById(messageId);
-        const senderSocket = getUserSocket(updatedMsg.sender);
+//     console.log(`👁️ Marked ${updated.modifiedCount} messages as seen from ${sender} to ${receiver}`);
 
-        if (senderSocket) {
-          io.to(senderSocket).emit("messageReadAck", {
-            _id: messageId,
-            reader: updatedMsg.receiver,
-            readAt: new Date(),
-          });
-        }
-
-        console.log(`👁️‍🗨️ Message ${messageId} marked as read`);
-      } catch (err) {
-        console.error("❌ Error marking message as read:", err);
-      }
-    });
-
+//     const senderSocket = getUserSocket(sender);
+//     if (senderSocket) {
+//       io.to(senderSocket).emit("seenAck", {
+//         sender,
+//         receiver,
+//         seenAt: new Date(),
+//       });
+//     }
+//   } catch (err) {
+//     console.error("❌ Error marking messages as seen:", err);
+//   }
+// });
     
     socket.on("disconnect", () => {
       const disconnectedUser = removeUser(socket.id);

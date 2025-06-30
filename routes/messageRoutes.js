@@ -47,10 +47,10 @@ router.get("/undelivered", async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
-router.get("/unread", async (req, res) => {
+router.get("/unseen", async (req, res) => {
   const { receiver } = req.query;
   try {
-    const messages = await Message.find({ receiver, read: false });
+    const messages = await Message.find({ receiver, seen: false });
     res.json(messages);
   } catch (err) {
     res.status(500).json({ error: "Server error" });

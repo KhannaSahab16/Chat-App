@@ -3,9 +3,8 @@ const http = require("http");
 const cors = require("cors");
 const mongoose = require("mongoose");
 const { Server } = require("socket.io");
-const statusRoutes = require("./routes/statusRoutes");
-const onlineRoute = require("./routes/onlineRoute");
-
+const authRoutes = require("./routes/authRoutes");
+const userRoutes = require("./routes/userRoutes")
 const connectDB = require("./config/db");
 const messageRoutes = require("./routes/messageRoutes");
 const socketHandler = require("./sockets/chat");
@@ -24,9 +23,8 @@ app.use(express.json());
 
 
 app.use("/api/messages", messageRoutes);
-app.use("/api", statusRoutes);
-app.use("/api/online-users", onlineRoute);
-
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
 
 require("./sockets/chat")(io); 
 
