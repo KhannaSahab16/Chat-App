@@ -20,4 +20,25 @@ router.delete("/messages/:id", verifyToken, verifyAdmin, async (req, res) => {
     res.status(500).json({ error: "Failed to delete message" });
   }
 });
+
+router.put("/freeze-user", verifyToken, verifyAdmin, async (req, res) => {
+  const { username } = req.body;
+
+  if (!username) return res.status(400).json({ error: "Username required" });
+
+  try {
+    const user = await User.findOneAndUpdate(
+      { username },
+      { frozen: true },
+      { new: true }
+    );
+
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    res.json({ message: `❄️ User '${username}' has been frozen.` });
+  } catch (err) {
+    res.status(500).json({ error: "Server error while freezing user" });
+  }
+});
+
 module.exports = router;

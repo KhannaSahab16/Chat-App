@@ -8,6 +8,7 @@ const UserSchema = new mongoose.Schema({
   role: { type: String, enum: ["user", "admin"], default: "user" },
   mood: { type: String, default: "default" },
 language: { type: String, enum: ["english", "hindi"], default: "english" },
+frozen: { type: Boolean, default: false }
 });
 
 module.exports = mongoose.model("User", UserSchema);

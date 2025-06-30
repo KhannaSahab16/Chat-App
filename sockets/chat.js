@@ -17,7 +17,14 @@ module.exports = (io) => {
     
     socket.on("register", async (username) => {
   try {
+  
     username = username.trim();
+    const userDoc = await User.findOne({ username });
+if (userDoc.frozen) {
+  console.log(`🚫 User ${username} is frozen. Disconnecting...`);
+  socket.emit("error", "Your account is frozen by admin");
+  return socket.disconnect();
+}
     registerUser(username, socket.id);
     console.log(`✅ Registered: ${username} → ${socket.id}`);
     io.emit("onlineStatus", { user: username, status: "online" });
