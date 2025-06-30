@@ -77,10 +77,20 @@ module.exports = (io) => {
           await newMsg.save();
           console.log(`⚠️ ${receiver} is offline so message stored for later`);
         }
-        socket.emit("message-sent", message);
-        if (receiverSocket) {
-      socket.emit("message-delivered", { messageId: message._id });
-    }
+        socket.emit("message-sent", {
+  _id: newMsg._id,
+  receiver,
+  message,
+  timestamp: newMsg.timestamp,
+});
+
+
+if (receiverSocketId) {
+  io.to(socket.id).emit("message-delivered", {
+    messageId: newMsg._id,
+    receiver,
+  });
+}
       } catch (err) {
         console.error("❌ Error saving message:", err);
       }

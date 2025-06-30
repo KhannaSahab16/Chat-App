@@ -57,4 +57,22 @@ router.get("/unseen", async (req, res) => {
   }
 });
 
+router.get("/export", async (req, res) => {
+  const { user1, user2 } = req.query;
+  try {
+    const messages = await Message.find({
+      $or: [
+        { sender: user1, receiver: user2 },
+        { sender: user2, receiver: user1 },
+      ],
+    }).sort({ timestamp: 1 });
+
+    res.setHeader("Content-Disposition", "attachment; filename=chat.json");
+    res.setHeader("Content-Type", "application/json");
+    res.send(JSON.stringify(messages, null, 2));
+  } catch (err) {
+    res.status(500).json({ error: "Export failed" });
+  }
+});
+
 module.exports = router;
