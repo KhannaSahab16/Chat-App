@@ -2,7 +2,8 @@
 
 Welcome to the backend of a full-fledged real-time chat system — built from scratch using **Node.js**, **Express**, **MongoDB**, and **Socket.IO** 🚀
 
-> 📢 Everything from real-time messaging to offline delivery, read receipts, and online user tracking — all without any frontend, tested purely with Socket.IO Client Tool & Postman.
+> 📢 From real-time messaging, offline delivery, read receipts, profile editing, admin tools, and even a chatbot — this backend is loaded.  
+> ✅ Tested purely with Postman & Socket.IO Client Tool — no frontend needed.
 
 ---
 
@@ -10,96 +11,150 @@ Welcome to the backend of a full-fledged real-time chat system — built from sc
 
 - **Node.js** + **Express** – API and server logic
 - **MongoDB** + **Mongoose** – Database and models
-- **Socket.IO** – Real-time communication (send, receive, update)
-- **Postman / Socket.IO Client Tool** – Testing APIs and events
-- **Nodemon** – Dev-friendly auto-reload
+- **Socket.IO** – Real-time messaging, delivery, typing, read events
+- **Postman** + **Socket.IO Client Tool** – API and event testing
+- **JWT Auth** – Secure user endpoints
+- **Nodemon** – Auto-reload during dev
 
 ---
 
 ## ✨ Features
 
-### ✅ User Registration (Socket)
-- When a user connects and sends a `"register"` event with their name, we:
-  - Save their `username → socket.id` in memory
-  - Broadcast their `onlineStatus` to all
-  - Push any pending offline messages
+### ✅ Auth (JWT)
+- `POST /register` – New user registration
+- `POST /login` – Login and receive JWT token
+- JWT-protected routes for profile and admin
 
-### ✅ Real-Time Messaging
-- Event: `"sendMessage"`
-- Instantly delivers message to receiver if online
-- If offline, message is stored in MongoDB (`delivered: false`)
-- Auto-assigns `timestamp` and `_id`
+---
 
-### ✅ Offline Message Delivery
-- When a user registers:
-  - We query undelivered messages
-  - Send them instantly to the user's socket
-  - Mark them as `delivered: true`
+### ✅ Real-Time Chat Engine
 
-### ✅ Read Receipts
-- Event: `"messageRead"`
-- When a user reads a message, we:
-  - Mark message as `read: true` in DB
-  - Notify sender with `"messageReadAck"` event
+#### 🔌 `register`
+- On socket connect, emit `register`
+- Backend:
+  - Stores `username ↔ socketId` in memory
+  - Marks user as **online**
+  - Pushes **undelivered messages**
 
-### ✅ Online Status Broadcast
-- On register and disconnect:
-  - We emit `{ user, status: "online" | "offline" }` to all clients
+#### 💬 `sendMessage`
+- Instantly delivers if receiver online
+- Saves to DB regardless
+- Handles `delivered` status
 
-### ✅ REST API Endpoints
+#### 📤 Offline Delivery
+- When a user connects:
+  - All `delivered: false` messages are pushed
+  - Status updated in DB
 
-| Endpoint                | Description                          |
-|-------------------------|--------------------------------------|
-| `GET /api/online-users` | Lists currently online users         |
-| `GET /api/messages/history?sender=A&receiver=B&limit=10&before=<timestamp>` | Chat history with pagination |
+#### 👁️ `messageSeen`
+- Mark messages as `seen: true`
+- Notifies original sender via `seenAck` event
+
+#### ✍️ Typing Indicators
+- `typing` and `stop-typing` events supported
+
+---
+
+### 📡 Online Status
+
+- Emits `onlineStatus` updates to all users
+- `GET /api/users/online` returns list of active users
+
+---
+
+### 🤖 Auto-Reply Bot (Fun Feature)
+- Send messages to **Bot** like:
+  - `"hello"`, `"who are you"`, `"joke"`, `"bye"`
+- Bot responds with hardcoded replies
+
+---
+
+### 🔐 Admin Panel Features
+
+JWT role-based admin with these routes:
+
+| Route                        | Description                       |
+|------------------------------|-----------------------------------|
+| `DELETE /admin/users/:id`    | Delete any user                   |
+| `DELETE /admin/messages/:id` | Delete any message                |
+| `POST /admin/freeze/:id`     | Freeze a user (disable sending)   |
+| `POST /admin/unfreeze/:id`   | Unfreeze a user                   |
+
+---
+
+### 🧾 Profile Management
+
+- `GET /api/users/profile/me` – Get your profile
+- `PUT /api/users/profile/me` – Edit bio or avatar
+- `GET /api/users/profile/:username` – View others' profiles
+- `GET /api/users/` – List all users (except self)
+
+---
+
+### 📊 Analytics & Export
+
+- `GET /api/messages/analytics`  
+  → Returns:
+  ```json
+  {
+    "totalMessages": 145,
+    "delivered": 140,
+    "seen": 100,
+    "undelivered": 5
+  }
+  ```
+
+- `GET /api/messages/export`  
+  → Download all your messages in `.txt` format
 
 ---
 
 ## 🧪 Testing Instructions
 
-- Use **Socket.IO Client Tool** for:
-  - Register: `register` → `"Mehul"`
-  - Send message: `sendMessage` → `{ sender, receiver, message }`
-  - Mark read: `messageRead` → `{ messageId }`
+**Socket.IO Client Tool**:
+- Emit `register` → `"mehul"`
+- Emit `sendMessage` → `{ sender, receiver, message }`
+- Emit `messageSeen` → `{ sender, receiver }`
+- Emit `typing` → `{ to }`, then `stop-typing`
 
-- Use **Postman** for:
-  - `GET /api/online-users`
-  - `GET /api/messages/history?sender=Mehul&receiver=Ankit&limit=10`
+**Postman**:
+- Auth: `POST /register`, `POST /login`
+- Protected routes (use Bearer token in header):
+  - `GET /api/users/`
+  - `GET /api/users/profile/me`
+  - `PUT /api/users/profile/me`
+  - `GET /api/messages/history?user1=A&user2=B`
+  - Admin routes (`/admin/...`)
+  - Bot via regular `sendMessage` with `receiver: "Bot"`
 
 ---
 
 ## 🗂️ Project Structure
 
-<pre>chat-backend/
-│
-├── server.js        # Main entry point
-├── sockets/
-│ └── chat.js        # Socket.IO event handlers
-├── models/
-│ └── Message.js     # Mongoose schema for chat messages
+```
+chat-backend/
+├── server.js
 ├── config/
-│ └── db.js 
+│   └── db.js
+├── models/
+│   ├── User.js
+│   └── Message.js
 ├── routes/
-│ └── messageRoutes.js
-│ └── onlineRoute.js
-│ └── statusRoutes.js
-│ └── userRoutes.js      # REST API routes (history, online users)
+│   ├── messageRoutes.js
+│   ├── userRoutes.js
+│   ├── statusRoutes.js
+│   ├── adminRoutes.js
+│   └── onlineRoute.js
+├── sockets/
+│   └── chat.js
 ├── utils/
-│ └── userStore.js # Utility to map username ↔ socket.id
-├── .gitignore
+│   └── userStore.js
+├── middleware/
+│   └── auth.js
+├── .env
 ├── package.json
-├── package-lock.json
-└── .env # MongoDB connection URI </pre>
-  
----
-
-## 🧠 Future Ideas
-
-- Authentication (JWT or OAuth)
-- Group Chat / Chatrooms
-- Media/File Support
-- Rate Limiting
-- Message Edit/Delete
+└── README.md
+```
 
 ---
 
@@ -114,4 +169,3 @@ Passionate about building real-time scalable systems 💻🔥
 ## ⭐️ If you like this project
 
 Don’t forget to **star** ⭐ the repo and **fork** if you'd like to build on top of it!
-
